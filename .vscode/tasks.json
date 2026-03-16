@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "C/C++ Compile Run: Compile",
+      "type": "shell",
+      "command": "g++",
+      "args": [
+        "-Wall",
+        "-Wextra",
+        "-g3",
+        "-static-libgcc",
+        "-static-libstdc++",
+        "${workspaceFolder}\\anywhere_door_agent\\main.cpp",
+        "${workspaceFolder}\\anywhere_door_agent\\service.cpp",
+        "-o",
+        "${workspaceFolder}\\anywhere_door_agent\\output\\main.exe"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\anywhere_door_agent"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Builds AnywhereDoorAgent from project entrypoint and service modules."
+    }
+  ]
+}

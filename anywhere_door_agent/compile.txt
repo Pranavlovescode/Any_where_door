@@ -1,0 +1,23 @@
+chcp 65001 | Out-Null; g++ -Wall -Wextra -g3 c:\coding-playground\anywhere_door\anywhere_door_agent\main.cpp c:\coding-playground\anywhere_door\anywhere_door_agent\service.cpp -o c:\coding-playground\anywhere_door\anywhere_door_agent\output\anywheredoor.exe; Write-Output "EXIT_CODE:$LASTEXITCODE"
+
+
+
+$svc = "AnywhereDoorAgent"
+$exe = "C:\coding-playground\anywhere_door\anywhere_door_agent\output\anywheredoor.exe"
+
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) { throw "Open PowerShell as Administrator and rerun." }
+
+if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
+
+if (-not (Get-Service -Name $svc -ErrorAction SilentlyContinue)) {
+  sc.exe create $svc binPath= $exe start= demand DisplayName= "Anywhere Door Agent"
+  sc.exe description $svc "Anywhere Door background agent"
+} else {
+  sc.exe stop $svc
+  sc.exe config $svc binPath= $exe
+}
+
+sc.exe start $svc
+sc.exe query $svc
+Get-Service -Name $svc

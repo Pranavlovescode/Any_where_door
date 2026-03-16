@@ -1,0 +1,2 @@
+Orchestrator started successfully! and written to file
+Probe file path: C:\coding-playground\anywhere_door\anywhere_door_agent\output\sample.txt

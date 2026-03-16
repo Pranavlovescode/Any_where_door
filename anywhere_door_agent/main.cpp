@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include "service.h"
 
 SERVICE_STATUS_HANDLE serviceStatusHandle = 0;
 SERVICE_STATUS serviceStatus = {};
@@ -73,6 +74,11 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR* argv)
         UpdateServiceStatus(SERVICE_STOPPED, GetLastError(), 0);
         return;
     }
+
+    // Simulate some initialization work
+    startOrchestrator();
+    Sleep(2000);
+
 
     UpdateServiceStatus(SERVICE_RUNNING, NO_ERROR, 0);
 
