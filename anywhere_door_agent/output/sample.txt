@@ -1,2 +1,36 @@
 Orchestrator started successfully! and written to file
 Probe file path: C:\coding-playground\anywhere_door\anywhere_door_agent\output\sample.txt
+Orchestrator heartbeat epoch=1773852712
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852714
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852716
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852718
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852720
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852722
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852724
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852726
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852728
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852730
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773852732
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853063
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853065
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853067
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853090
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853092
+Probe file path: output/sample.txt
+Orchestrator heartbeat epoch=1773853094
+Probe file path: output/sample.txt

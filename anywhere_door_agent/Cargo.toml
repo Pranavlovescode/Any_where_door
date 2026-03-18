@@ -1,0 +1,10 @@
+[package]
+name = "anywhere_door_agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ctrlc = "3.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.8"

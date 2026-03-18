@@ -1,0 +1,18 @@
+[Unit]
+Description=Anywhere Door Agent (Rust)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/anywhere_door_agent
+WorkingDirectory=/var/lib/anywhere-door-agent
+Environment=ANYWHERE_DOOR_PROBE_FILE=/var/log/anywhere-door-agent/probe.txt
+Restart=always
+RestartSec=3
+User=anywhere-door
+Group=anywhere-door
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,44 +1,75 @@
-#include <Windows.h>
-#include <iostream>
 #include "service.h"
+
+#include <chrono>
+#include <csignal>
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
+#include <string>
+#include <thread>
 
 namespace
 {
+    volatile std::sig_atomic_t gStopRequested = 0;
+
+    void handleSignal(int)
+    {
+        gStopRequested = 1;
+    }
+
     std::string getProbeFilePath()
     {
-        char exePath[MAX_PATH] = {};
-        if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) == 0)
+        const char* customProbePath = std::getenv("ANYWHERE_DOOR_PROBE_FILE");
+        if (customProbePath != nullptr && customProbePath[0] != '\0')
         {
-            return "sample.txt";
+            return customProbePath;
         }
 
-        std::string path(exePath);
-        const size_t lastSlash = path.find_last_of("\\/");
-        if (lastSlash != std::string::npos)
-        {
-            path.resize(lastSlash + 1);
-        }
-        else
-        {
-            path.clear();
-        }
+        return "output/sample.txt";
+    }
 
-        path += "sample.txt";
-        return path;
+    std::string getHeartbeatMessage()
+    {
+        const auto now = std::chrono::system_clock::now();
+        const auto epochSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+            now.time_since_epoch()).count();
+
+        return "Orchestrator heartbeat epoch=" + std::to_string(epochSeconds);
     }
 }
 
 void startOrchestrator()
 {
-    // Simulate starting the orchestrator
     const std::string probeFilePath = getProbeFilePath();
-    std::ofstream outputFile(probeFilePath, std::ios::out | std::ios::trunc);
+    std::ofstream outputFile(probeFilePath, std::ios::out | std::ios::app);
     if (outputFile.is_open())
     {
-        outputFile << "Orchestrator started successfully! and written to file" << std::endl;
+        outputFile << getHeartbeatMessage() << std::endl;
         outputFile << "Probe file path: " << probeFilePath << std::endl;
         outputFile.close();
+        return;
     }
-    Sleep(1000); // Simulate some delay
+
+    std::cerr << "Unable to open probe file at: " << probeFilePath << std::endl;
+}
+
+int runService()
+{
+    gStopRequested = 0;
+
+    std::signal(SIGINT, handleSignal);
+#ifdef SIGTERM
+    std::signal(SIGTERM, handleSignal);
+#endif
+
+    std::cout << "Anywhere Door agent service started. Press Ctrl+C to stop." << std::endl;
+
+    while (gStopRequested == 0)
+    {
+        startOrchestrator();
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+
+    std::cout << "Anywhere Door agent service stopped." << std::endl;
+    return 0;
 }
