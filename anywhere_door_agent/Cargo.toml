@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ctrlc = "3.4"
+walkdir = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-service = "0.8"

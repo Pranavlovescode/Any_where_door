@@ -8,6 +8,7 @@ Type=simple
 ExecStart=/usr/local/bin/anywhere_door_agent
 WorkingDirectory=/var/lib/anywhere-door-agent
 Environment=ANYWHERE_DOOR_PROBE_FILE=/var/log/anywhere-door-agent/probe.txt
+Environment=ANYWHERE_DOOR_FILESYSTEM_OUTPUT=/var/log/anywhere-door-agent/filesystem_scan.txt
 Restart=always
 RestartSec=3
 User=anywhere-door

@@ -1,4 +1,5 @@
 mod service;
+mod filesystem;
 #[cfg(windows)]
 mod windows_service;
 
