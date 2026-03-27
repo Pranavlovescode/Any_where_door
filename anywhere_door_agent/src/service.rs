@@ -31,6 +31,20 @@ fn filesystem_output_path() -> String {
     }
 }
 
+fn file_watcher_enabled() -> bool {
+    match env::var("ANYWHERE_DOOR_ENABLE_OS_WATCHER") {
+        Ok(value) => matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"),
+        Err(_) => true,
+    }
+}
+
+fn file_watcher_output_path() -> String {
+    match env::var("ANYWHERE_DOOR_FILE_EVENT_METADATA_OUTPUT") {
+        Ok(path) if !path.is_empty() => path,
+        Err(_) | Ok(_) => "output/file_event_metadata.ndjson".to_string(),
+    }
+}
+
 fn start_filesystem_worker(
     stop_requested: Arc<AtomicBool>,
     scan_interval: Duration,
@@ -55,6 +69,14 @@ fn start_filesystem_worker(
                 thread::sleep(Duration::from_secs(1));
                 elapsed += Duration::from_secs(1);
             }
+        }
+    });
+}
+
+fn start_file_watcher_worker(stop_requested: Arc<AtomicBool>, output_path: String) {
+    thread::spawn(move || {
+        if let Err(err) = crate::filesystem::watcher::run_os_file_watcher(stop_requested, &output_path) {
+            eprintln!("OS file watcher failed: {}", err);
         }
     });
 }
@@ -150,6 +172,8 @@ pub fn run_loop(
     let filesystem_enabled = filesystem_service_enabled();
     let filesystem_interval = filesystem_scan_interval();
     let filesystem_output = filesystem_output_path();
+    let watcher_enabled = file_watcher_enabled();
+    let watcher_output = file_watcher_output_path();
 
     if filesystem_enabled {
         start_filesystem_worker(
@@ -157,6 +181,10 @@ pub fn run_loop(
             filesystem_interval,
             filesystem_output,
         );
+    }
+
+    if watcher_enabled {
+        start_file_watcher_worker(Arc::clone(&stop_requested), watcher_output);
     }
 
     while !stop_requested.load(Ordering::SeqCst) {
