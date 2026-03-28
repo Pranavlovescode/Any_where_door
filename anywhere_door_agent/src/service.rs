@@ -41,7 +41,7 @@ fn file_watcher_enabled() -> bool {
 fn file_watcher_output_path() -> String {
     match env::var("ANYWHERE_DOOR_FILE_EVENT_METADATA_OUTPUT") {
         Ok(path) if !path.is_empty() => path,
-        Err(_) | Ok(_) => "output/file_event_metadata.ndjson".to_string(),
+        _ => "output/file_event_metadata.ndjson".to_string(),
     }
 }
 
