@@ -29,7 +29,8 @@ Write-Host "Binary location: $resolvedExe"
 Write-Host ""
 
 # Get or prompt for watch directories
-if (-not $WatchRoots) {
+if (-not $WatchRoots) 
+{
     Write-Host "=== Directory Selection ===" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Choose which directories to watch:" -ForegroundColor Yellow
@@ -41,27 +42,33 @@ if (-not $WatchRoots) {
     
     $choice = Read-Host "Enter choice (1-4)"
     
-    switch ($choice) {
-        "1" {
+    switch ($choice) 
+    {
+        "1" 
+        {
             Write-Host "Selected: All drives" -ForegroundColor Green
-            $WatchRoots = ""  # Empty means auto-detect all drives
+            $WatchRoots = ""
         }
-        "2" {
+        "2" 
+        {
             $WatchRoots = $env:USERPROFILE
             Write-Host "Selected: $WatchRoots" -ForegroundColor Green
         }
-        "3" {
+        "3" 
+        {
             Write-Host ""
             Write-Host "Enter directories to watch (separate with semicolon):" -ForegroundColor Yellow
             Write-Host "Example: C:\Users\YourName;D:\Projects;C:\Data" -ForegroundColor Gray
             $WatchRoots = Read-Host "Directories"
             Write-Host "Selected: $WatchRoots" -ForegroundColor Green
         }
-        "4" {
+        "4" 
+        {
             Write-Host "Skipping directory selection. Configure ANYWHERE_DOOR_WATCH_ROOTS manually later." -ForegroundColor Yellow
             $WatchRoots = ""
         }
-        default {
+        default 
+        {
             Write-Host "Invalid choice. Using default (all drives)." -ForegroundColor Yellow
             $WatchRoots = ""
         }
@@ -73,20 +80,24 @@ Write-Host "[1/4] Checking for existing service..." -ForegroundColor Cyan
 
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
-if ($Recreate -and $existing) {
+if ($Recreate -and $existing) 
+{
     Write-Host "Removing existing service..." -ForegroundColor Yellow
     sc.exe stop $ServiceName 2>&1 | Out-Null
     Start-Sleep -Seconds 1
     sc.exe delete $ServiceName 2>&1 | Out-Null
     Start-Sleep -Seconds 1
     $existing = $null
-    Write-Host "✓ Existing service removed" -ForegroundColor Green
+    Write-Host "[OK] Existing service removed" -ForegroundColor Green
 }
 
-if (-not $existing) {
-    Write-Host "✓ No existing service found, will create new one" -ForegroundColor Green
-} else {
-    Write-Host "✓ Existing service found, will update configuration" -ForegroundColor Green
+if (-not $existing) 
+{
+    Write-Host "[OK] No existing service found, will create new one" -ForegroundColor Green
+}
+else 
+{
+    Write-Host "[OK] Existing service found, will update configuration" -ForegroundColor Green
 }
 
 Write-Host ""
@@ -94,58 +105,60 @@ Write-Host "[2/4] Creating/Updating Windows service..." -ForegroundColor Cyan
 
 $binPath = '"' + $resolvedExe + '" --windows-service'
 
-if (-not $existing) {
+if (-not $existing) 
+{
     sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= "$DisplayName" 2>&1 | Out-Null
     sc.exe description $ServiceName "$Description" 2>&1 | Out-Null
-} else {
+}
+else 
+{
     sc.exe stop $ServiceName 2>&1 | Out-Null
     Start-Sleep -Seconds 1
     sc.exe config $ServiceName binPath= $binPath start= auto DisplayName= "$DisplayName" 2>&1 | Out-Null
     sc.exe description $ServiceName "$Description" 2>&1 | Out-Null
 }
 
-Write-Host "✓ Service created/updated" -ForegroundColor Green
+Write-Host "[OK] Service created/updated" -ForegroundColor Green
 
-# Configure watch roots via environment variables (stored in registry for service)
+# Configure watch roots via service environment variables
 Write-Host ""
 Write-Host "[3/4] Configuring watch directories..." -ForegroundColor Cyan
 
+# Services read per-service environment variables from:
+# HKLM\SYSTEM\CurrentControlSet\Services\<ServiceName>\Environment (REG_MULTI_SZ)
+$regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
+
+if (-not (Test-Path $regPath)) 
+{
+    New-Item -Path $regPath -Force | Out-Null
+}
+
+# Use ProgramData for service output so it is independent of service account profile.
+$outputDir = "$env:ProgramData\AnywhereDoor"
+$metadataOutputPath = "$outputDir\file_event_metadata.ndjson"
+
+# Build service environment list.
+$serviceEnv = @(
+    "ANYWHERE_DOOR_ENABLE_OS_WATCHER=true",
+    "ANYWHERE_DOOR_FILE_EVENT_METADATA_OUTPUT=$metadataOutputPath"
+)
+
 if ($WatchRoots) {
-    # Set environment variable in registry so service can access it
-    # Services read environment from: HKLM\SYSTEM\CurrentControlSet\Services\<ServiceName>\Parameters
-    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
-    
-    if (-not (Test-Path $regPath)) {
-        New-Item -Path $regPath -Force | Out-Null
-    }
-    
-    # Create Parameters key if it doesn't exist
-    $paramsPath = "$regPath\Parameters"
-    if (-not (Test-Path $paramsPath)) {
-        New-Item -Path $paramsPath -Force | Out-Null
-    }
-    
-    Set-ItemProperty -Path $paramsPath -Name "ANYWHERE_DOOR_WATCH_ROOTS" -Value $WatchRoots -Force
+    $serviceEnv += "ANYWHERE_DOOR_WATCH_ROOTS=$WatchRoots"
     Write-Host "Watch directories: $WatchRoots" -ForegroundColor Green
 } else {
     Write-Host "Watch directories: Auto-detect all drives (default)" -ForegroundColor Green
 }
 
-# Enable watcher
-$paramsPath = "$regPath\Parameters"
-if (-not (Test-Path $paramsPath)) {
-    New-Item -Path $paramsPath -Force | Out-Null
-}
-Set-ItemProperty -Path $paramsPath -Name "ANYWHERE_DOOR_ENABLE_OS_WATCHER" -Value "true" -Force
-Set-ItemProperty -Path $paramsPath -Name "ANYWHERE_DOOR_FILE_EVENT_METADATA_OUTPUT" -Value "%APPDATA%\AnywhereDoor\file_event_metadata.ndjson" -Force
+New-ItemProperty -Path $regPath -Name "Environment" -PropertyType MultiString -Value $serviceEnv -Force | Out-Null
 
 # Create output directory
-$outputDir = "$env:APPDATA\AnywhereDoor"
-if (-not (Test-Path $outputDir)) {
+if (-not (Test-Path $outputDir)) 
+{
     New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
 }
 
-Write-Host "✓ Watch directories configured" -ForegroundColor Green
+Write-Host "[OK] Watch directories configured" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "[4/4] Starting service..." -ForegroundColor Cyan
@@ -156,7 +169,7 @@ sc.exe start $ServiceName 2>&1 | Out-Null
 Start-Sleep -Seconds 2
 
 $status = sc.exe query $ServiceName
-Write-Host "✓ Service started" -ForegroundColor Green
+Write-Host "[OK] Service started" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== Installation Complete ===" -ForegroundColor Green
@@ -166,9 +179,12 @@ Write-Host "  Service name: $ServiceName"
 Write-Host "  Display name: $DisplayName"
 Write-Host "  Binary: $resolvedExe"
 Write-Host "  Output directory: $outputDir"
-if ($WatchRoots) {
+if ($WatchRoots) 
+{
     Write-Host "  Watch directories: $WatchRoots"
-} else {
+}
+else 
+{
     Write-Host "  Watch directories: All available drives (auto-detected)"
 }
 Write-Host ""
@@ -176,7 +192,7 @@ Write-Host "Useful commands:" -ForegroundColor Yellow
 Write-Host "  Get status:     sc.exe query $ServiceName"
 Write-Host "  Start service:  sc.exe start $ServiceName"
 Write-Host "  Stop service:   sc.exe stop $ServiceName"
-Write-Host "  View logs:      Get-Content $outputDir\file_event_metadata.ndjson -Tail 20"
+Write-Host "  View logs:      Get-Content $metadataOutputPath -Tail 20"
 Write-Host ""
 Write-Host "To change watch directories later:" -ForegroundColor Cyan
 Write-Host "  .\scripts\install-windows-service.ps1 -WatchRoots 'C:\Users;D:\Projects' -Recreate"
