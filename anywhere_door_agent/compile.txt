@@ -22,13 +22,23 @@ sc.exe start $svc
 sc.exe query $svc
 Get-Service -Name $svc
 
-
+with filesystem scanner 
 cd /home/deilsy/Any_where_door/anywhere_door_agent && \
 ANYWHERE_DOOR_PROBE_FILE=output/probe.txt \
 ANYWHERE_DOOR_FILESYSTEM_OUTPUT=output/filesystem_scan.txt \
 ANYWHERE_DOOR_FILESYSTEM_SCAN_INTERVAL_SECONDS=300 \
-ANYWHERE_DOOR_ENABLE_FILESYSTEM_SERVICE=true \
+ANYWHERE_DOOR_ENABLE_FILESYSTEM_SERVICE=false \
 ANYWHERE_DOOR_ENABLE_OS_WATCHER=true \
 ANYWHERE_DOOR_FILE_EVENT_METADATA_OUTPUT=output/file_event_metadata.ndjson \
 ANYWHERE_DOOR_WATCH_ROOTS=. \
 cargo build --release && sudo install -m 0755 target/release/anywhere_door_agent /usr/local/bin/anywhere_door_agent
+
+
+with only watcher enabled
+cd /home/deilsy/Any_where_door/anywhere_door_agent && \
+cargo build --release && \
+sudo install -m 0755 target/release/anywhere_door_agent /usr/local/bin/anywhere_door_agent && \
+sudo systemctl restart anywhere-door-agent.service && \
+sleep 2 && \
+echo "=== Service Status ===" && \
+sudo systemctl status anywhere-door-agent.service --no-pager | head -15

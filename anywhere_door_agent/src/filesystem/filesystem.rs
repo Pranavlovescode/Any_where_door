@@ -1,3 +1,7 @@
+// Filesystem scanner module - OPTIONAL feature
+// Currently disabled in favor of OS-level watcher for memory efficiency
+// Kept for future use if bulk scanning is needed
+
 extern crate walkdir;
 use std::fs::{self, OpenOptions};
 use std::io;
@@ -5,7 +9,10 @@ use std::io::Write;
 use std::path::Path;
 use walkdir::WalkDir;
 
+#[allow(dead_code)]
+
 #[cfg(windows)]
+#[allow(dead_code)]
 fn windows_drive_roots() -> Vec<String> {
     let mut drives = Vec::new();
 
@@ -19,6 +26,7 @@ fn windows_drive_roots() -> Vec<String> {
     drives
 }
 
+#[allow(dead_code)]
 fn ensure_parent_dir(path: &str) -> io::Result<()> {
     if let Some(parent) = Path::new(path).parent() {
         if !parent.as_os_str().is_empty() {
@@ -29,6 +37,7 @@ fn ensure_parent_dir(path: &str) -> io::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn run_filesystem_service(output_path: &str) -> io::Result<usize> {
     ensure_parent_dir(output_path)?;
 
