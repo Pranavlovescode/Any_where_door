@@ -38,15 +38,50 @@ CALLING_USER_GROUP="$(id -gn $CALLING_USER)"
 SERVICE_USER="$CALLING_USER"
 SERVICE_GROUP="$CALLING_USER_GROUP"
 
-# Determine watch roots: watch ONLY user's home directory
-# This monitors all changes in the user's home directory and subdirectories
-WATCH_ROOTS="$CALLING_USER_HOME"
-
-# Allow override via environment variable (comma-separated on Linux)
-if [[ -n "${ANYWHERE_DOOR_WATCH_ROOTS:-}" ]]; then
+# Determine watch roots with interactive selection (unless pre-configured)
+if [[ -z "${ANYWHERE_DOOR_WATCH_ROOTS:-}" ]]; then
+  # Interactive directory selection
+  echo -e "${YELLOW}=== Directory Selection ===${NC}\n"
+  echo "Choose which directories to watch:"
+  echo "[1] Home directory ($CALLING_USER_HOME) - Default"
+  echo "[2] Entire filesystem (/)"
+  echo "[3] Custom directories (enter paths separated by comma)"
+  echo "[4] Skip and configure manually later"
+  echo ""
+  read -p "Enter choice (1-4): " dir_choice
+  
+  case "$dir_choice" in
+    1)
+      WATCH_ROOTS="$CALLING_USER_HOME"
+      echo -e "${GREEN}Selected: $WATCH_ROOTS${NC}"
+      ;;
+    2)
+      WATCH_ROOTS="/"
+      echo -e "${GREEN}Selected: / (entire filesystem)${NC}"
+      ;;
+    3)
+      echo ""
+      echo "Enter directories to watch (separated by comma):"
+      echo "Example: /home/user,/var/log,/opt/data"
+      read -p "Directories: " WATCH_ROOTS
+      echo -e "${GREEN}Selected: $WATCH_ROOTS${NC}"
+      ;;
+    4)
+      WATCH_ROOTS="$CALLING_USER_HOME"
+      echo -e "${YELLOW}Will use default home directory, but can be changed later${NC}"
+      ;;
+    *)
+      WATCH_ROOTS="$CALLING_USER_HOME"
+      echo -e "${YELLOW}Invalid choice. Using default: $CALLING_USER_HOME${NC}"
+      ;;
+  esac
+else
+  # Use environment variable if provided
   WATCH_ROOTS="$ANYWHERE_DOOR_WATCH_ROOTS"
+  echo -e "${YELLOW}Using configured watch roots: $WATCH_ROOTS${NC}"
 fi
 
+echo ""
 echo -e "${YELLOW}=== Installing Anywhere Door Agent ===${NC}\n"
 echo "Installing for user: $CALLING_USER"
 echo "User home directory: $CALLING_USER_HOME"

@@ -26,11 +26,15 @@ struct FileEventMetadata {
     paths: Vec<PathMetadata>,
 }
 
-#[cfg(windows)]
 fn watch_roots() -> Vec<PathBuf> {
+    // Try to read configured watch roots from environment
     if let Ok(configured_roots) = env::var("ANYWHERE_DOOR_WATCH_ROOTS") {
+        // Parse paths separated by either comma or semicolon
+        // This allows flexibility: Windows (C:\path;D:\path) or Linux (/home/user,/var/log)
+        let separator = if configured_roots.contains(';') { ';' } else { ',' };
+
         let roots = configured_roots
-            .split(';')
+            .split(separator)
             .filter(|part| !part.trim().is_empty())
             .map(|part| PathBuf::from(part.trim()))
             .collect::<Vec<_>>();
@@ -40,33 +44,26 @@ fn watch_roots() -> Vec<PathBuf> {
         }
     }
 
-    let mut roots = Vec::new();
-    for letter in 'A'..='Z' {
-        let drive = format!("{}:\\", letter);
-        let drive_path = PathBuf::from(drive);
-        if drive_path.exists() {
-            roots.push(drive_path);
+    // Default watch roots based on platform
+    #[cfg(windows)]
+    {
+        // On Windows, auto-detect available drives (C:, D:, E:, etc.)
+        let mut roots = Vec::new();
+        for letter in 'A'..='Z' {
+            let drive = format!("{}:\\", letter);
+            let drive_path = PathBuf::from(&drive);
+            if drive_path.exists() {
+                roots.push(drive_path);
+            }
         }
+        roots
     }
 
-    roots
-}
-
-#[cfg(not(windows))]
-fn watch_roots() -> Vec<PathBuf> {
-    if let Ok(configured_roots) = env::var("ANYWHERE_DOOR_WATCH_ROOTS") {
-        let roots = configured_roots
-            .split(',')
-            .filter(|part| !part.trim().is_empty())
-            .map(|part| PathBuf::from(part.trim()))
-            .collect::<Vec<_>>();
-
-        if !roots.is_empty() {
-            return roots;
-        }
+    #[cfg(not(windows))]
+    {
+        // On Linux/Unix, watch from root unless configured otherwise
+        vec![PathBuf::from("/")]
     }
-
-    vec![PathBuf::from("/")]
 }
 
 fn ensure_parent_dir(path: &str) -> Result<(), String> {
@@ -183,11 +180,24 @@ pub fn run_os_file_watcher(
     }
 
     if watched_roots == 0 {
-        return Err(
-            "Failed to watch any filesystem root path. On Linux this usually means insufficient permissions to watch '/'. Set ANYWHERE_DOOR_WATCH_ROOTS to accessible directories, or run with higher privileges for whole-system monitoring."
-                .to_string(),
-        );
+        #[cfg(windows)]
+        {
+            return Err(
+                "Failed to watch any filesystem root path. Ensure drives are accessible and ANYWHERE_DOOR_WATCH_ROOTS is set correctly (use semicolon separator: C:\\Users;D:\\Data). You may need to run with elevated privileges."
+                    .to_string(),
+            );
+        }
+
+        #[cfg(not(windows))]
+        {
+            return Err(
+                "Failed to watch any filesystem root path. This usually means insufficient permissions. Set ANYWHERE_DOOR_WATCH_ROOTS to accessible directories (use comma separator: /home/user,/var/log), or run with higher privileges."
+                    .to_string(),
+            );
+        }
     }
+
+    eprintln!("OS file watcher initialized successfully, watching {} root path(s)", watched_roots);
 
     while !stop_requested.load(Ordering::SeqCst) {
         match event_rx.recv_timeout(Duration::from_secs(1)) {
