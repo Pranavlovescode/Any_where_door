@@ -1,5 +1,7 @@
 mod service;
 mod filesystem;
+mod auth;
+mod net;
 #[cfg(windows)]
 mod windows_service;
 
