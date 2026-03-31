@@ -119,6 +119,154 @@ impl NetworkService {
     }
 
     // ========================================================================
+    // Device Registration & Authentication
+    // ========================================================================
+
+    /// Register device with backend server
+    /// Calls POST /auth/register-device on the backend
+    pub async fn register_device(&mut self) -> Result<(), String> {
+        let endpoint = format!("{}/auth/register-device", self.server_url);
+        
+        // Create request body with JWT
+        let payload = serde_json::json!({
+            "jwt": self.user_jwt
+        });
+
+        let response = self
+            .client
+            .post(&endpoint)
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to register device: {}", e))?;
+
+        // Parse response
+        #[derive(Deserialize)]
+        struct DeviceRegistrationResponse {
+            device_id: String,
+            device_secret: String,
+            created_at: i64,
+        }
+
+        let device_response = response
+            .json::<DeviceRegistrationResponse>()
+            .await
+            .map_err(|e| format!("Failed to parse device registration response: {}", e))?;
+
+        // Update internal state with new device credentials
+        self.device_id = device_response.device_id;
+        self.device_secret = device_response.device_secret;
+
+        println!("✓ Device registered successfully");
+        println!("  Device ID: {}", self.device_id);
+        println!("  Device Secret (save this carefully): {}", self.device_secret);
+
+        Ok(())
+    }
+
+    /// Save device credentials to a file for persistence  
+    /// Creates a .anywhereaoor file with device credentials
+    pub fn save_device_credentials(&self, credentials_path: &Path) -> Result<(), String> {
+        #[derive(Serialize)]
+        struct DeviceCredentials {
+            device_id: String,
+            device_secret: String,
+            jwt: String,
+        }
+
+        let credentials = DeviceCredentials {
+            device_id: self.device_id.clone(),
+            device_secret: self.device_secret.clone(),
+            jwt: self.user_jwt.clone(),
+        };
+
+        let json = serde_json::to_string_pretty(&credentials)
+            .map_err(|e| format!("Failed to serialize credentials: {}", e))?;
+
+        std::fs::write(credentials_path, json)
+            .map_err(|e| format!("Failed to save device credentials: {}", e))?;
+
+        // Set restrictive permissions on the credentials file (Unix-like systems)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o600); // Read/write only for owner
+            std::fs::set_permissions(credentials_path, perms)
+                .map_err(|e| format!("Failed to set file permissions: {}", e))?;
+        }
+
+        println!("✓ Device credentials saved to: {}", credentials_path.display());
+        Ok(())
+    }
+
+    /// Load device credentials from a file
+    pub fn load_device_credentials(credentials_path: &Path) -> Result<(String, String, String), String> {
+        let json = std::fs::read_to_string(credentials_path)
+            .map_err(|e| format!("Failed to read credentials file: {}", e))?;
+
+        #[derive(Deserialize)]
+        struct DeviceCredentials {
+            device_id: String,
+            device_secret: String,
+            jwt: String,
+        }
+
+        let credentials: DeviceCredentials = serde_json::from_str(&json)
+            .map_err(|e| format!("Failed to parse credentials file: {}", e))?;
+
+        Ok((credentials.device_id, credentials.device_secret, credentials.jwt))
+    }
+
+    /// Check if device credentials exist
+    pub fn has_device_credentials(credentials_path: &Path) -> bool {
+        credentials_path.exists()
+    }
+
+    /// Get current device ID
+    pub fn get_device_id(&self) -> &str {
+        &self.device_id
+    }
+
+    /// Update device credentials (for testing or manual update)
+    pub fn update_device_credentials(&mut self, device_id: String, device_secret: String) {
+        self.device_id = device_id;
+        self.device_secret = device_secret;
+    }
+
+    /// Perform complete device registration and credential save operation
+    /// This is the main entry point for setting up a new device
+    pub async fn register_and_save_device(&mut self, credentials_path: &Path) -> Result<(), String> {
+        println!("Registering device with server...");
+        self.register_device().await?;
+        
+        println!("Saving device credentials...");
+        self.save_device_credentials(credentials_path)?;
+        
+        println!("✓ Device setup complete!");
+        Ok(())
+    }
+
+    /// Initialize device from saved credentials
+    /// Returns a NetworkService with loaded credentials
+    pub fn from_saved_credentials(
+        server_url: String,
+        auth_service: AuthService,
+        credentials_path: &Path,
+    ) -> Result<Self, String> {
+        let (device_id, device_secret, user_jwt) = 
+            Self::load_device_credentials(credentials_path)?;
+
+        Ok(NetworkService {
+            server_url,
+            client: Client::new(),
+            auth_service,
+            user_jwt,
+            device_id,
+            device_secret,
+        })
+    }
+
+    // ========================================================================
     // Metadata Operations
     // ========================================================================
 
