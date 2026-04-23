@@ -10,14 +10,14 @@ REM Defaults
 set PRODUCTION=false
 set PORT=8000
 set HOST=0.0.0.0
-set RELOAD=--reload
+set _RELOAD_FLAG=--reload
 
 REM Parse arguments
 :parse_args
 if "%~1"=="" goto args_done
 if "%~1"=="--production" (
     set PRODUCTION=true
-    set RELOAD=
+    set _RELOAD_FLAG=
     shift
     goto parse_args
 )
@@ -107,7 +107,7 @@ if "%PRODUCTION%"=="true" (
     echo [INFO] API docs at: http://%HOST%:%PORT%/docs
     echo [INFO] Press Ctrl+C to stop
     echo.
-    uvicorn main:app %RELOAD% --host %HOST% --port %PORT% --log-level info
+    uvicorn main:app %_RELOAD_FLAG% --host %HOST% --port %PORT% --log-level info
 )
 
 pause
