@@ -138,6 +138,9 @@ else
 {
   "device_id": "$DEVICE_ID",
   "device_secret": "$DEVICE_SECRET",
+  "username": "$USERNAME",
+  "password": "$PASSWORD",
+  "jwt": "$JWT",
   "timestamp": "$TIMESTAMP"
 }
 CREDS_EOF

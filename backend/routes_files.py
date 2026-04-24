@@ -3,9 +3,11 @@ File API routes
 """
 import base64
 import hashlib
+import logging
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import uuid
 
@@ -14,6 +16,8 @@ from schemas import FileUploadPayload, FileResponse, MetadataBatchRequest
 from models import File, FileMetadata, Device
 from auth_utils import verify_jwt
 from config import Settings
+
+logger = logging.getLogger("anywhere_door.files")
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 settings = Settings()
@@ -49,6 +53,7 @@ async def upload_file(payload: FileUploadPayload, jwt: str = None, db: Session =
     
     # Get metadata
     metadata = payload.metadata
+    logger.info(f"Upload request: {metadata.file_name} ({metadata.file_size} bytes) from user {user_id[:8]}...")
     
     # Decode file content from Base64
     try:
@@ -92,6 +97,8 @@ async def upload_file(payload: FileUploadPayload, jwt: str = None, db: Session =
     db.add(file_record)
     db.commit()
     db.refresh(file_record)
+    
+    logger.info(f"Upload complete: {metadata.file_name} -> {file_id[:8]}... ({metadata.file_size} bytes, hash verified)")
     
     return FileResponse(
         file_id=file_id,
@@ -261,4 +268,42 @@ async def delete_file(file_id: str, jwt: str = None, db: Session = Depends(get_d
     return {
         "status": "success",
         "message": "File deleted"
+    }
+
+
+class HashCheckRequest(BaseModel):
+    """Request to check which file hashes are already known by the server"""
+    jwt: str
+    hashes: List[str]
+
+
+@router.post("/check-hashes")
+async def check_hashes(request: HashCheckRequest, db: Session = Depends(get_db)):
+    """
+    Check which SHA256 hashes are already stored for the authenticated user.
+    Returns two lists: 'known' (already uploaded) and 'unknown' (need upload).
+    Used by the agent to skip re-uploading unchanged files.
+    """
+    user_id = verify_device_from_jwt(request.jwt, db)
+    logger.info(f"Hash check: {len(request.hashes)} hash(es) from user {user_id[:8]}...")
+
+    if not request.hashes:
+        return {"known": [], "unknown": []}
+
+    # Query all matching hashes for this user in one go
+    existing_hashes = db.query(File.file_hash).filter(
+        File.user_id == user_id,
+        File.file_hash.in_(request.hashes)
+    ).all()
+
+    known_set = {row[0] for row in existing_hashes}
+
+    known = [h for h in request.hashes if h in known_set]
+    unknown = [h for h in request.hashes if h not in known_set]
+
+    logger.info(f"Hash check result: {len(known)} known, {len(unknown)} unknown")
+
+    return {
+        "known": known,
+        "unknown": unknown
     }

@@ -2,6 +2,7 @@ mod service;
 mod filesystem;
 mod auth;
 mod net;
+mod sync;
 #[cfg(windows)]
 mod windows_service;
 

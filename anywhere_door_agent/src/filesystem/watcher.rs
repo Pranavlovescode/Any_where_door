@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::mpsc as tokio_mpsc;
 
 #[derive(Serialize)]
 struct PathMetadata {
@@ -147,6 +148,7 @@ fn same_path(left: &Path, right: &Path) -> bool {
 pub fn run_os_file_watcher(
     stop_requested: Arc<AtomicBool>,
     output_path: &str,
+    sync_tx: Option<tokio_mpsc::UnboundedSender<Event>>,
 ) -> Result<(), String> {
     ensure_parent_dir(output_path)?;
 
@@ -207,6 +209,12 @@ pub fn run_os_file_watcher(
                     continue;
                 }
 
+                // Forward to sync pipeline (if connected)
+                if let Some(ref tx) = sync_tx {
+                    let _ = tx.send(event.clone());
+                }
+
+                // Write to local NDJSON log
                 let metadata = event_to_metadata(event);
                 let line = serde_json::to_string(&metadata)
                     .map_err(|err| format!("Failed to serialize watcher metadata: {err}"))?;

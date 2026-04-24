@@ -5,3 +5,4 @@ pub mod auth;
 pub mod filesystem;
 pub mod service;
 pub mod net;
+pub mod sync;

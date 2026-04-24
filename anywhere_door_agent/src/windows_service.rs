@@ -47,13 +47,47 @@ fn run_service_main() -> Result<(), String> {
         ServiceState::StartPending,
         ServiceExitCode::Win32(0),
     )?;
+
+    // Create a persistent tokio runtime for device init + sync pipeline
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| format!("Failed to create tokio runtime: {}", e))?;
+
+    // Initialize device credentials (non-interactive in service mode —
+    // credentials must already exist from the installer script)
+    if let Err(e) = rt.block_on(crate::service::try_load_device_config()) {
+        eprintln!("Windows service: device config load failed: {}", e);
+    }
+
+    // Start sync pipeline if credentials are available
+    let credentials_path = crate::service::get_credentials_path();
+    let pipeline_handle = if crate::service::sync_enabled()
+        && crate::net::net::NetworkService::has_device_credentials(&credentials_path)
+    {
+        let handle = rt.block_on(async {
+            crate::sync::start_pipeline(credentials_path)
+        });
+        eprintln!("Windows service: sync pipeline started");
+        Some(handle)
+    } else {
+        eprintln!("Windows service: sync pipeline disabled (no credentials or disabled)");
+        None
+    };
+
+    let sync_tx = pipeline_handle.as_ref().map(|h| h.event_tx.clone());
+
     set_status(
         &status_handle,
         ServiceState::Running,
         ServiceExitCode::Win32(0),
     )?;
 
-    let run_result = crate::service::run_loop(stop_requested, false, false);
+    let run_result = crate::service::run_loop(stop_requested, false, false, sync_tx);
+
+    // Graceful shutdown of sync pipeline
+    if let Some(handle) = pipeline_handle {
+        eprintln!("Windows service: shutting down sync pipeline...");
+        rt.block_on(handle.shutdown());
+    }
 
     let stopped_exit_code = if run_result.is_ok() {
         ServiceExitCode::Win32(0)

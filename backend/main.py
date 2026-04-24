@@ -1,8 +1,12 @@
 """
 FastAPI Application Main Entry Point
 """
-from fastapi import FastAPI, HTTPException
+import logging
+import time
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 from database import init_db
@@ -11,6 +15,31 @@ from routes_files import router as files_router
 from routes_agent import router as agent_router
 from routes_sync import router as sync_router
 
+def configure_app_logging() -> logging.Logger:
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    loggers = [
+        logging.getLogger("anywhere_door"),
+        logging.getLogger("anywhere_door.requests"),
+        logging.getLogger("anywhere_door.auth"),
+        logging.getLogger("anywhere_door.files"),
+        logging.getLogger("anywhere_door.sync"),
+        logging.getLogger("anywhere_door.agent"),
+    ]
+
+    for logger in loggers:
+        logger.setLevel(logging.INFO)
+        if not logger.handlers:
+            logger.addHandler(handler)
+        logger.propagate = False
+
+    return logging.getLogger("anywhere_door")
+
 # Startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,18 +47,18 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for FastAPI startup and shutdown
     """
     # Startup
-    print("Starting AnywhereDoor Server...")
-    print(f"[{datetime.utcnow().isoformat()}] Initializing database...")
+    logger = configure_app_logging()
+    logger.info("Starting AnywhereDoor Server...")
     try:
         init_db()
-        print(f"[{datetime.utcnow().isoformat()}] Database initialized successfully")
+        logger.info("Database initialized successfully")
     except Exception as e:
-        print(f"[{datetime.utcnow().isoformat()}] Error initializing database: {str(e)}")
+        logger.error(f"Error initializing database: {str(e)}")
     
     yield
     
     # Shutdown
-    print(f"\n[{datetime.utcnow().isoformat()}] Shutting down AnywhereDoor Server...")
+    logger.info("Shutting down AnywhereDoor Server...")
 
 
 # Create FastAPI app
@@ -49,6 +78,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================================
+# Request Logging Middleware
+# ============================================================================
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        logger = logging.getLogger("anywhere_door.requests")
+        start_time = time.time()
+
+        # Log incoming request
+        body_size = request.headers.get("content-length", "0")
+        request_path = request.url.path
+        if request.url.query:
+            request_path = f"{request_path}?{request.url.query}"
+        logger.info(f"--> {request.method} {request_path} (body: {body_size} bytes)")
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.time() - start_time) * 1000
+            logger.exception(
+                f"<-- {request.method} {request_path} [500] ({duration_ms:.1f}ms)"
+            )
+            raise
+
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info(
+            f"<-- {request.method} {request_path} "
+            f"[{response.status_code}] ({duration_ms:.1f}ms)"
+        )
+        return response
+
+app.add_middleware(RequestLoggingMiddleware)
 
 
 # Include routers
@@ -93,7 +157,8 @@ async def root():
                 "list": "GET /api/files/list",
                 "download": "GET /api/files/{file_id}/download",
                 "delete": "DELETE /api/files/{file_id}",
-                "batch_metadata": "POST /api/files/batch-metadata"
+                "batch_metadata": "POST /api/files/batch-metadata",
+                "check_hashes": "POST /api/files/check-hashes"
             },
             "agent": {
                 "register": "POST /api/agent/register",
@@ -117,11 +182,14 @@ async def http_exception_handler(request, exc):
     """
     Custom HTTP exception handler
     """
-    return {
-        "status": "error",
-        "detail": exc.detail,
-        "status_code": exc.status_code
-    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "detail": exc.detail,
+            "status_code": exc.status_code
+        },
+    )
 
 
 if __name__ == "__main__":
