@@ -535,7 +535,8 @@ async fn upload_file(
             "mime_type": mime_type,
             "is_directory": false
         },
-        "file_content": encoded
+        "file_content": encoded,
+        "source": "agent"
     });
 
     let url = format!("{}/api/files/upload?jwt={}", base_url, jwt);

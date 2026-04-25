@@ -14,6 +14,7 @@ from routes_auth import router as auth_router
 from routes_files import router as files_router
 from routes_agent import router as agent_router
 from routes_sync import router as sync_router
+from routes_websocket import router as websocket_router
 
 def configure_app_logging() -> logging.Logger:
     formatter = logging.Formatter(
@@ -120,6 +121,7 @@ app.include_router(auth_router)
 app.include_router(files_router)
 app.include_router(agent_router)
 app.include_router(sync_router)
+app.include_router(websocket_router)
 
 
 # Health check endpoint

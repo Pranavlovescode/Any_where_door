@@ -51,6 +51,7 @@ pub struct AgentInfo {
 pub struct FileUploadPayload {
     pub metadata: FileMetadata,
     pub file_content: String,  // Base64 encoded for JSON transfer
+    pub source: String,        // Source of upload: frontend or agent
 }
 
 /// Metadata sync request (without file contents)
@@ -336,6 +337,7 @@ impl NetworkService {
         let payload = FileUploadPayload {
             metadata,
             file_content: encoded_content,
+            source: "agent".to_string(),
         };
 
         let endpoint = format!("{}/api/files/upload", self.server_url);
@@ -364,6 +366,56 @@ impl NetworkService {
         }
 
         Ok(responses)
+    }
+
+    /// Download a file from the server
+    pub async fn download_file(&self, file_id: &str, target_path: &Path) -> Result<(), String> {
+        let endpoint = format!("{}/api/files/{}/download?jwt={}", self.server_url, file_id, self.user_jwt);
+        let response = self
+            .client
+            .get(&endpoint)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+        #[derive(Deserialize)]
+        struct DownloadResponse {
+            status: String,
+            file_content: Option<String>,
+            #[allow(dead_code)]
+            message: Option<String>,
+        }
+
+        let dl_resp = response
+            .json::<DownloadResponse>()
+            .await
+            .map_err(|e| format!("Failed to parse download response: {}", e))?;
+
+        if dl_resp.status != "success" {
+            return Err(dl_resp.message.unwrap_or_else(|| "Download failed".to_string()));
+        }
+
+        if let Some(content) = dl_resp.file_content {
+            use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+            let decoded = BASE64.decode(content).map_err(|e| format!("Base64 decode error: {}", e))?;
+            
+            if let Some(parent) = target_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dirs: {}", e))?;
+            }
+            
+            std::fs::write(target_path, decoded).map_err(|e| format!("Failed to write file: {}", e))?;
+            Ok(())
+        } else {
+            Err("No file content received".to_string())
+        }
+    }
+
+    /// Delete a local file
+    pub fn delete_local_file(target_path: &Path) -> Result<(), String> {
+        if target_path.exists() {
+            std::fs::remove_file(target_path).map_err(|e| format!("Failed to delete file: {}", e))?;
+        }
+        Ok(())
     }
 
     // ========================================================================

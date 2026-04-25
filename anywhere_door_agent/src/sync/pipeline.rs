@@ -73,7 +73,7 @@ pub fn start_pipeline(credentials_path: PathBuf) -> PipelineHandle {
     let worker_handles = uploader::spawn_workers(
         Arc::clone(&queue),
         stop_rx.clone(),
-        credentials_path,
+        credentials_path.clone(),
     );
 
     // --- Task 4: queue depth logger (every 30s) ---------------------------
@@ -94,8 +94,14 @@ pub fn start_pipeline(credentials_path: PathBuf) -> PipelineHandle {
         }
     });
 
+    // --- Task 5: WebSocket listener (Bidirectional Sync) ------------------
+    let ws_handle = crate::net::spawn_websocket_listener(
+        stop_rx.clone(),
+        credentials_path.clone(),
+    );
+
     // Collect all handles
-    let mut handles = vec![debounce_handle, feeder_handle, logger_handle];
+    let mut handles = vec![debounce_handle, feeder_handle, logger_handle, ws_handle];
     handles.extend(worker_handles);
 
     eprintln!("Sync: pipeline started");

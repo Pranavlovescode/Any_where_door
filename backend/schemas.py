@@ -55,6 +55,7 @@ class FileUploadPayload(BaseModel):
     """File upload with metadata"""
     metadata: FileMetadataRequest
     file_content: str = Field(..., description="Base64 encoded file content")
+    source: str = Field("frontend", description="Source of upload: frontend or agent")
 
 
 class MetadataBatchRequest(BaseModel):

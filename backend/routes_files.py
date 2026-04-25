@@ -16,6 +16,7 @@ from schemas import FileUploadPayload, FileResponse, MetadataBatchRequest
 from models import File, FileMetadata, Device
 from auth_utils import verify_jwt
 from config import Settings
+from sync_broadcast import get_broadcaster
 
 logger = logging.getLogger("anywhere_door.files")
 
@@ -99,6 +100,19 @@ async def upload_file(payload: FileUploadPayload, jwt: str = None, db: Session =
     db.refresh(file_record)
     
     logger.info(f"Upload complete: {metadata.file_name} -> {file_id[:8]}... ({metadata.file_size} bytes, hash verified)")
+    
+    # Broadcast upload event to all connected clients
+    broadcaster = get_broadcaster()
+    await broadcaster.broadcast_file_event(
+        user_id=user_id,
+        event_type="upload",
+        file_id=file_id,
+        file_name=metadata.file_name,
+        file_path=metadata.file_path,
+        file_size=metadata.file_size,
+        source=payload.source,
+        timestamp=int(file_record.uploaded_at.timestamp())
+    )
     
     return FileResponse(
         file_id=file_id,
@@ -232,7 +246,7 @@ async def download_file(file_id: str, jwt: str = None, db: Session = Depends(get
 
 
 @router.delete("/{file_id}")
-async def delete_file(file_id: str, jwt: str = None, db: Session = Depends(get_db)):
+async def delete_file(file_id: str, source: str = "frontend", jwt: str = None, db: Session = Depends(get_db)):
     """
     Delete a file if user owns it
     """
@@ -250,6 +264,11 @@ async def delete_file(file_id: str, jwt: str = None, db: Session = Depends(get_d
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
     
+    # Store file info before deletion for broadcast
+    file_name = file_record.file_name
+    file_path = file_record.file_path
+    file_size = file_record.file_size
+    
     # Delete from disk
     import os
     try:
@@ -264,6 +283,18 @@ async def delete_file(file_id: str, jwt: str = None, db: Session = Depends(get_d
     # Delete from database
     db.delete(file_record)
     db.commit()
+    
+    # Broadcast delete event to all connected clients
+    broadcaster = get_broadcaster()
+    await broadcaster.broadcast_file_event(
+        user_id=user_id,
+        event_type="delete",
+        file_id=file_id,
+        file_name=file_name,
+        file_path=file_path,
+        file_size=file_size,
+        source=source
+    )
     
     return {
         "status": "success",

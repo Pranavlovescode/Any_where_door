@@ -14,10 +14,13 @@ import {
   Server,
   Trash2,
   UserRound,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDashboard } from '../hooks/useDashboard'
+import { useFileSync } from '../hooks/useFileSync'
 import { formatBytes } from '../lib/fileTree'
 
 const formatDate = (timestamp: number) =>
@@ -54,6 +57,14 @@ export const DashboardPage = () => {
     signOut,
   } = useDashboard()
 
+  // Handle file sync events
+  const handleFileEvent = useCallback(() => {
+    // Auto-refresh files when any file event occurs
+    void fetchFiles(jwt)
+  }, [fetchFiles, jwt])
+
+  const { isConnected } = useFileSync(serverUrl, handleFileEvent)
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true })
@@ -75,10 +86,25 @@ export const DashboardPage = () => {
           <ChevronRight size={12} className="text-zinc-500" />
           <span className="text-zinc-400">Anywhere Door Cloud</span>
         </div>
-        <button type="button" onClick={signOut} className="explorer-toolbar-btn">
-          <LogOut size={14} />
-          Sign out
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-md bg-black/30 px-2.5 py-1">
+            {isConnected ? (
+              <>
+                <Wifi size={12} className="text-emerald-400" />
+                <span className="text-xs text-emerald-300">Synced</span>
+              </>
+            ) : (
+              <>
+                <WifiOff size={12} className="text-zinc-500" />
+                <span className="text-xs text-zinc-400">Offline</span>
+              </>
+            )}
+          </div>
+          <button type="button" onClick={signOut} className="explorer-toolbar-btn">
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div className="explorer-toolbar flex flex-wrap items-center justify-between gap-2 px-4 py-2">
