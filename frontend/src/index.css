@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+.light {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui;
+  background: #0f1114;
+}
+
+.light body {
+  background: #e7ebf2;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+@layer components {
+  .explorer-shell {
+    @apply bg-[#17191d]/95 shadow-2xl backdrop-blur-md;
+  }
+
+  .explorer-titlebar {
+    @apply border-b border-white/10 bg-zinc-950/60;
+  }
+
+  .explorer-toolbar {
+    @apply border-b border-white/10 bg-zinc-900/60;
+  }
+
+  .explorer-sidebar {
+    @apply bg-zinc-900/75;
+  }
+
+  .explorer-content {
+    @apply bg-[#15171a]/95;
+  }
+
+  .explorer-table-head {
+    @apply border-b border-white/10 bg-zinc-900/45;
+  }
+
+  .explorer-row {
+    @apply border-b border-white/[0.06] text-sm transition;
+  }
+
+  .explorer-row:hover {
+    @apply bg-white/[0.03];
+  }
+
+  .explorer-row-active {
+    @apply bg-sky-400/15;
+  }
+
+  .explorer-statusbar {
+    @apply border-t border-white/10 bg-zinc-900/45 text-zinc-400;
+  }
+
+  .explorer-toolbar-btn {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-zinc-200 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .explorer-toolbar-primary {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-emerald-300/40 bg-emerald-300/15 px-2.5 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-300/25;
+  }
+
+  .explorer-search {
+    @apply inline-flex items-center gap-2 rounded-md border border-white/10 bg-black/30 px-2.5 py-1.5;
+  }
+
+  .explorer-side-meta {
+    @apply flex items-center gap-1.5 truncate rounded-md bg-black/20 px-2 py-1 text-zinc-300;
+  }
+
+  .explorer-folder {
+    @apply flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-zinc-300 transition hover:bg-white/[0.06];
+  }
+
+  .explorer-folder-active {
+    @apply bg-sky-400/15 text-sky-100;
+  }
+
+  .explorer-label {
+    @apply flex flex-col gap-1 text-xs uppercase tracking-[0.08em] text-zinc-400;
+  }
+
+  .explorer-input {
+    @apply rounded-md border border-white/10 bg-black/35 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-sky-400/60;
+  }
+
+  .explorer-primary-btn {
+    @apply inline-flex items-center gap-2 rounded-md border border-emerald-300/40 bg-emerald-300/15 px-3 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-300/25 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .explorer-secondary-btn {
+    @apply inline-flex items-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/15 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .explorer-info {
+    @apply text-xs text-emerald-200;
+  }
+
+  .explorer-error {
+    @apply text-xs text-rose-300;
+  }
+
+  .light .explorer-shell {
+    @apply bg-white/95 text-slate-900;
+  }
+
+  .light .explorer-titlebar,
+  .light .explorer-toolbar,
+  .light .explorer-sidebar,
+  .light .explorer-table-head,
+  .light .explorer-statusbar,
+  .light .explorer-content {
+    @apply border-slate-200 bg-slate-50;
+  }
+
+  .light .explorer-row {
+    @apply border-slate-200;
+  }
+
+  .light .explorer-row:hover {
+    @apply bg-slate-100;
+  }
+
+  .light .explorer-row-active {
+    @apply bg-sky-100;
+  }
+
+  .light .explorer-toolbar-btn {
+    @apply border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
+  }
+
+  .light .explorer-search,
+  .light .explorer-input,
+  .light .explorer-side-meta,
+  .light .explorer-folder {
+    @apply border-slate-300 bg-white text-slate-700;
+  }
+
+  .light .explorer-folder-active {
+    @apply bg-sky-100 text-sky-700;
+  }
+
+  .light .explorer-label {
+    @apply text-slate-500;
+  }
+
+  .light .explorer-info {
+    @apply text-emerald-700;
+  }
+
+  .light .explorer-error {
+    @apply text-rose-700;
+  }
+}
+
+@layer utilities {
+  .atmosphere {
+    background:
+      radial-gradient(circle at 20% 12%, rgba(122, 211, 255, 0.14), transparent 38%),
+      radial-gradient(circle at 86% 22%, rgba(157, 255, 224, 0.1), transparent 32%),
+      radial-gradient(circle at 70% 86%, rgba(136, 173, 255, 0.1), transparent 34%),
+      linear-gradient(120deg, #0c0e11 0%, #121418 46%, #14181f 100%);
+  }
+
+  .light .atmosphere {
+    background:
+      radial-gradient(circle at 14% 14%, rgba(63, 117, 232, 0.12), transparent 40%),
+      radial-gradient(circle at 82% 16%, rgba(126, 221, 198, 0.14), transparent 32%),
+      radial-gradient(circle at 82% 80%, rgba(188, 208, 255, 0.2), transparent 36%),
+      linear-gradient(145deg, #f0f4fb 0%, #e9eef7 50%, #dfe7f3 100%);
+  }
+}
